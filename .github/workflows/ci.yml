@@ -1,0 +1,41 @@
+name: CI
+
+# funnypot-policy is framework-free >=7.3 and consumed by the WordPress host (piece D), so it carries
+# its OWN 7.3 lane. The 7.3 job is authoritative for 7.3-syntax conformance (the dev host is 8.x, so a
+# local `php -l` there is blind to 7.4+ constructs). The suite is pure PHPUnit — no network, no DB, no
+# container: every port is a fake.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: [ '7.3', '8.4' ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: ctype, json, filter
+          coverage: none
+
+      - name: Lint (fast fail on 7.4+ constructs)
+        run: find src tests -name '*.php' -print0 | xargs -0 -n1 -P4 php -l >/dev/null
+
+      - name: Validate composer.json
+        run: composer validate --no-check-publish
+
+      - name: Install (zero hard runtime deps; dev-only phpunit)
+        run: composer install --no-interaction --prefer-dist
+
+      - name: PHPUnit (offline — no network, no DB)
+        run: php vendor/bin/phpunit

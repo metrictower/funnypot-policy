@@ -1,0 +1,25 @@
+{
+    "name": "metrictower/funnypot-policy",
+    "description": "Position-blind policy engine (piece M): cheapest-first decision precedence, learn-then-enforce, pin/TTL deception-consistency, report suppression. Returns a Decision; the host adapter executes it.",
+    "type": "library",
+    "license": "proprietary",
+    "require": {
+        "php": ">=7.3"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Funnypot\\Policy\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Funnypot\\Policy\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

@@ -127,4 +127,20 @@ final class PortsSmokeTest extends TestCase
         $null = new NullGeoIp();
         $this->assertNull($null->country('203.0.113.7')); // always null
     }
+
+    public function test_engine_handle_is_carried_opaquely()
+    {
+        $v = new Verdict(Verdict::SCANNER_PROBE, true, 'rule-1', 10, Verdict::SEVERITY_HIGH, false, null, 'engine:bundle#7');
+
+        self::assertSame('engine:bundle#7', $v->engineHandle(), 'the handle must survive the boundary byte-for-byte');
+        self::assertSame('rule-1', $v->signal(), 'the handle must not be confused with the signal');
+    }
+
+    public function test_engine_handle_defaults_to_empty_so_existing_callers_are_unaffected()
+    {
+        $v = new Verdict(Verdict::CLEAN, false, '', 0, Verdict::SEVERITY_LOW, true);
+
+        self::assertSame('', $v->engineHandle());
+    }
+
 }

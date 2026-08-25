@@ -35,6 +35,11 @@ final class Verdict
     private $onRealRoute;
     /** @var BotSignals the S request-shape signal set */
     private $botSignals;
+    /**
+     * @var string OPAQUE engine handle. The policy NEVER reads, parses or branches on this — it
+     *             carries it so the adapter can hand it back to the engine unchanged.
+     */
+    private $engineHandle;
 
     /**
      * @param string          $classification
@@ -44,8 +49,9 @@ final class Verdict
      * @param string          $severity
      * @param bool            $onRealRoute
      * @param BotSignals|null $botSignals
+     * @param string          $engineHandle opaque; the policy only carries it (see engineHandle())
      */
-    public function __construct($classification, $matched, $signal, $anomalyScore, $severity, $onRealRoute, $botSignals = null)
+    public function __construct($classification, $matched, $signal, $anomalyScore, $severity, $onRealRoute, $botSignals = null, $engineHandle = '')
     {
         $this->classification = (string) $classification;
         $this->matched = (bool) $matched;
@@ -54,6 +60,7 @@ final class Verdict
         $this->severity = (string) $severity;
         $this->onRealRoute = (bool) $onRealRoute;
         $this->botSignals = $botSignals instanceof BotSignals ? $botSignals : BotSignals::none();
+        $this->engineHandle = (string) $engineHandle;
     }
 
     public function classification()
@@ -96,5 +103,24 @@ final class Verdict
     public function botSignals()
     {
         return $this->botSignals;
+    }
+
+    /**
+     * The engine's own opaque handle for whatever produced this verdict, carried across the policy
+     * boundary untouched.
+     *
+     * The policy MUST NOT read, parse or branch on it — treat it as bytes. It exists solely so an
+     * adapter can round-trip an engine's classify() result into its synthesize() call without
+     * needing to keep the engine's object graph alive alongside the Verdict.
+     *
+     * Without it, an adapter has to either memoise the engine's handle against the Verdict (which
+     * needs WeakMap, so PHP 8.0+, ruling out WordPress hosts) or re-run classify() a second time
+     * and pay double. Both were being done, in different adapters, for the same contract.
+     *
+     * Empty string when the engine supplies none.
+     */
+    public function engineHandle()
+    {
+        return $this->engineHandle;
     }
 }

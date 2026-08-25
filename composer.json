@@ -1,6 +1,6 @@
 {
     "name": "metrictower/funnypot-policy",
-    "description": "Position-blind policy engine (piece M): cheapest-first decision precedence, learn-then-enforce, pin/TTL deception-consistency, report suppression. Returns a Decision; the host adapter executes it.",
+    "description": "Position-blind decision engine for funnypot: cheapest-first decision precedence, learn-then-enforce, pin/TTL deception consistency, report suppression. Returns a Decision; the host adapter executes it.",
     "type": "library",
     "license": "proprietary",
     "require": {

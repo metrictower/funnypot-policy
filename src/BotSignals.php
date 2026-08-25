@@ -20,6 +20,14 @@ final class BotSignals
     const UA_EMPTY   = 'empty';
     const UA_SCRIPT  = 'script';
     const UA_SCANNER = 'scanner';
+    /**
+     * A self-identifying crawler (Googlebot, Bingbot, …). CLAIMED, never verified — real
+     * verification is a reverse-DNS lookup, which is I/O and belongs to the host.
+     *
+     * Mirrors Funnypot\Core\BotSignalSet::UA_GOOD_BOT. The two vocabularies must stay aligned
+     * because CoreEvaluator passes the class through as a raw string with no mapping.
+     */
+    const UA_GOOD_BOT = 'good-bot';
 
     /** @var string one of the UA_* constants */
     private $uaClass;

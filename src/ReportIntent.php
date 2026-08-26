@@ -7,13 +7,13 @@ namespace Funnypot\Policy;
  * Decision merely carries it; the adapter decides whether to enqueue (to mainnet via F's reporter,
  * and/or an operator alert channel).
  *
- * Carries NO raw payload and NO signature string. `categories` are opaque tokens (the S4 'bad-bot' class
+ * Carries NO raw payload and NO signature string. `categories` are opaque tokens (the S4 'bad_bot' class
  * included when the actor is bot-shaped); the optional `signals` object (decision T) is flags/classes/
  * tokens only, present ONLY when bot_signals.telemetry is enabled (T4/T5). Untyped props + docblocks.
  */
 final class ReportIntent
 {
-    const CATEGORY_BAD_BOT = 'bad-bot';
+    const CATEGORY_BAD_BOT = 'bad_bot';
 
     /** @var string actor IP (normalised score_key) */
     private $ip;

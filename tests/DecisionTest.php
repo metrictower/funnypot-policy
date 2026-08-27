@@ -91,4 +91,36 @@ final class DecisionTest extends TestCase
         $this->assertStringNotContainsString('UNION', $dump);
         $this->assertStringNotContainsString('SELECT', $dump);
     }
+
+    public function test_category_constants_match_mainnet_slugs()
+    {
+        // Wire literal pin: prevents silent drift away from mainnet wire vocabulary.
+        $this->assertSame('bad_bot', ReportIntent::CATEGORY_BAD_BOT);
+
+        // Cross-repo boundary contract test against mainnet CategoryMap if in monorepo workspace.
+        $categoryMapPath = dirname(__DIR__, 2) . '/funnypot-mainnet/app/Support/CategoryMap.php';
+        if (!file_exists($categoryMapPath)) {
+            $known = array('bad_bot');
+            $this->assertContains(ReportIntent::CATEGORY_BAD_BOT, $known);
+            return;
+        }
+
+        require_once $categoryMapPath;
+        $constants = (new \ReflectionClass(ReportIntent::class))->getConstants();
+        $categoryConstants = array();
+        foreach ($constants as $name => $val) {
+            if (strpos($name, 'CATEGORY_') === 0) {
+                $categoryConstants[$name] = $val;
+            }
+        }
+
+        $this->assertNotEmpty($categoryConstants, 'ReportIntent must define at least one CATEGORY_ constant');
+        foreach ($categoryConstants as $name => $slug) {
+            $this->assertTrue(
+                \App\Support\CategoryMap::isSlug($slug),
+                "ReportIntent::{$name} ('{$slug}') is not accepted by CategoryMap::isSlug() — mainnet will reject reports"
+            );
+        }
+    }
 }
+

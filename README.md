@@ -77,8 +77,9 @@ PolicyConfig::fromArray(array(
 Only the PHP boolean `true` enables `deceive_ambient_paths`; strings and numbers remain off. The
 permission does not turn the default `log` action into deception by itself. It gates both explicit
 ambient deception and fallback promotion, while the existing counterfactual/real-route, posture,
-rule-state, allowlist and pin precedence still applies. Regardless of its configured action, actual
-ambient evidence enters reporting as soft evidence and accumulates under the normal suppression gate.
+rule-state, allowlist and pin precedence still applies. When an actionable decision enters reporting,
+actual ambient evidence is soft evidence and accumulates under the normal suppression gate, even for
+`block` or `deceive`. Explicit `allow` retains its existing reporting bypass.
 
 ## The cheapest-first ladder
 

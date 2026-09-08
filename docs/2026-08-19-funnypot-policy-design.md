@@ -536,6 +536,12 @@ Operationally:
 - **The uncertainty band: never deceive.** If the engine is merely suspicious — anomaly accumulating,
   no specific signature — the answer is `log` (or `block` in a strict protect-mode), **never**
   `deceive`.
+- **Ambient paths: observe by default, explicit permission to deceive.** The `ambient` band defaults
+  to `log`. Even when its configured action is `deceive` or fallback `allow` would ordinarily promote,
+  both deception gates remain closed unless the dedicated `deceive_ambient_paths` permission is the
+  literal boolean `true`. Permission alone does not change the default action, and it does not bypass
+  the counterfactual/real-route, posture or rule-state gates. Earlier hard allowlists and actor pins
+  retain precedence.
 
 The rationale is asymmetric cost, and it is the reason challenge/tarpit were cut and deceive was
 fenced this tightly: **a false-positive `block` (a 403) is honest and self-correcting** — the user
@@ -647,11 +653,13 @@ M15).
 [
   'posture'  => 'honeypot',            // honeypot | WAF | both  (preset selector)
   'position' => ['fallback' => true, 'before' => false],  // overridable per posture (M4 knobs)
+  'deceive_ambient_paths' => false,    // ONLY literal boolean true lifts both ambient deception gates
 
   // per-band action ceiling on REAL routes (the §5 ladder). Sacrificial/404-counterfactual paths
-  // are governed separately by the day-1 carve-out and always may deceive.
+  // are governed separately by the day-1 carve-out; actual AMBIENT still needs the flag above.
   'actions' => [
     'clean'         => 'allow',
+    'ambient'       => 'log',          // observed by default; flag is separate from action choice
     'suspicious'    => 'log',          // uncertainty band → never deceive (§5)
     'attack_class'  => 'block',        // specific class, real route → block (deceive only on a specific signature past threshold)
     'scanner_probe' => 'deceive',      // counterfactual 404 → deceive
@@ -736,6 +744,10 @@ loop, plus the aggregate-ban rule, plus the allowlist/SAFE_PATHS/OAST backstops.
 medium / +100 hard-tell** (a hard tell — an unambiguous exploit signature — is effectively instant).
 Score is a decayed accumulator (the same read-time-decay shape as the mainnet G1 model), so it drifts
 down without a sweep.
+
+An actual `ambient` verdict is always a **soft** increment, even when it preserves a matched/high
+witness or the opted-in action is block/deceive. Deception permission is independent from reporting
+severity; ambient evidence accumulates under the score gate rather than becoming a first-hit alert.
 
 **Aggregate-ban rule** — an actor is escalated to a ban recommendation only with **≥2 distinct sources
 AND total_score ≥ 200 over a 90-day window** (`StateStore.aggregateScore`). This mirrors the mainnet

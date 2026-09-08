@@ -304,6 +304,7 @@ final class PolicyEngine
         $verdict = $this->evaluator->classify($e, $p);
         $band = $verdict->classification();
         $counterfactual404 = ($verdict->onRealRoute() === false);
+        $ambientDeceptionAllowed = $band !== Verdict::AMBIENT || $this->config->deceiveAmbientPaths();
 
         // --- base action from the configured band ceiling ---
         $action = $this->config->actionFor($band);
@@ -314,11 +315,11 @@ final class PolicyEngine
         $earnedDeceive = false;
         if ($action === Decision::DECEIVE) {
             $specificPastThreshold = $verdict->matched() && $verdict->severity() === Verdict::SEVERITY_HIGH;
-            if ($counterfactual404 || $specificPastThreshold) {
+            if ($ambientDeceptionAllowed && ($counterfactual404 || $specificPastThreshold)) {
                 $earnedDeceive = true;
             } else {
                 $action = $this->protectMode($position) ? Decision::BLOCK : Decision::LOG;
-                $reason = 'suspicious';
+                $reason = $band === Verdict::AMBIENT ? 'ambient' : 'suspicious';
             }
         }
 
@@ -368,10 +369,11 @@ final class PolicyEngine
             $reason = 'shadow';
         }
 
-        // --- default-install posture (§7): at the FALLBACK position, every otherwise-unmatched request
-        //     is deceived. FP-free by construction — a request that reached the 404 fallback had no real
-        //     route, so the counterfactual is a 404. ---
-        if ($position === PolicyConfig::POSITION_FALLBACK && $action === Decision::ALLOW && $counterfactual404) {
+        // --- default-install posture (§7): at the FALLBACK position, every otherwise-unmatched
+        //     non-ambient request is deceived. Ambient promotion remains behind its dedicated permission.
+        //     FP-free by construction — a request that reached the 404 fallback had no real route. ---
+        if ($position === PolicyConfig::POSITION_FALLBACK && $action === Decision::ALLOW
+            && $counterfactual404 && $ambientDeceptionAllowed) {
             $action = Decision::DECEIVE;
             $reason = 'fallback-deceive';
         }
@@ -539,6 +541,9 @@ final class PolicyEngine
     /** Map a decision to a suppression severity: an unambiguous exploit is a hard tell (§9). */
     private function severityFor($verdict, $action)
     {
+        if ($verdict instanceof Verdict && $verdict->classification() === Verdict::AMBIENT) {
+            return Suppressor::SEV_SOFT;
+        }
         if ($verdict instanceof Verdict && $verdict->matched() && $verdict->severity() === Verdict::SEVERITY_HIGH) {
             return Suppressor::SEV_HARD;
         }
@@ -634,6 +639,9 @@ final class PolicyEngine
 
     private function bandReason($band)
     {
+        if ($band === Verdict::AMBIENT) {
+            return 'ambient';
+        }
         if ($band === Verdict::SCANNER_PROBE) {
             return 'scanner-probe';
         }

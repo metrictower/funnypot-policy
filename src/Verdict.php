@@ -13,6 +13,7 @@ final class Verdict
 {
     // classification (least -> most actionable)
     const CLEAN         = 'clean';
+    const AMBIENT       = 'ambient';       // ordinary ambient-path traffic: observe softly by default
     const SUSPICIOUS    = 'suspicious';    // the uncertainty band → never deceive (§5)
     const SCANNER_PROBE = 'scanner-probe'; // counterfactual-404 probe → deceive
     const ATTACK_CLASS  = 'attack-class';  // a specific class, real route → block/deceive per §5

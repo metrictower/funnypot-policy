@@ -18,8 +18,10 @@ final class PolicyConfigTest extends TestCase
 
         $this->assertSame(Decision::ALLOW, $c->actionFor(Verdict::CLEAN));
         $this->assertSame(Decision::LOG, $c->actionFor(Verdict::SUSPICIOUS));
+        $this->assertSame(Decision::LOG, $c->actionFor(Verdict::AMBIENT));
         $this->assertSame(Decision::BLOCK, $c->actionFor(Verdict::ATTACK_CLASS));
         $this->assertSame(Decision::DECEIVE, $c->actionFor(Verdict::SCANNER_PROBE));
+        $this->assertFalse($c->deceiveAmbientPaths());
 
         $rep = $c->reputation();
         $this->assertFalse($rep['enabled']);
@@ -55,6 +57,39 @@ final class PolicyConfigTest extends TestCase
         $this->assertTrue($c->positionEnabled('before'));
         $this->assertTrue($c->positionEnabled('fallback')); // untouched preset value
         $this->assertSame(Decision::DECEIVE, $c->actionFor(Verdict::ATTACK_CLASS));
+    }
+
+    public function test_ambient_action_and_dedicated_permission_are_independent()
+    {
+        $actionOnly = PolicyConfig::fromArray(array('actions' => array('ambient' => Decision::DECEIVE)));
+        $this->assertSame(Decision::DECEIVE, $actionOnly->actionFor(Verdict::AMBIENT));
+        $this->assertFalse($actionOnly->deceiveAmbientPaths());
+
+        $permissionOnly = PolicyConfig::fromArray(array('deceive_ambient_paths' => true));
+        $this->assertSame(Decision::LOG, $permissionOnly->actionFor(Verdict::AMBIENT));
+        $this->assertTrue($permissionOnly->deceiveAmbientPaths());
+    }
+
+    /** @dataProvider nonBooleanAmbientPermissionValues */
+    public function test_ambient_deception_permission_accepts_only_boolean_true($value)
+    {
+        $c = PolicyConfig::fromArray(array('deceive_ambient_paths' => $value));
+        $this->assertFalse($c->deceiveAmbientPaths());
+    }
+
+    public static function nonBooleanAmbientPermissionValues()
+    {
+        return array(
+            'null' => array(null),
+            'false' => array(false),
+            'integer one' => array(1),
+            'float one' => array(1.0),
+            'true string' => array('true'),
+            'false string' => array('false'),
+            'one string' => array('1'),
+            'array' => array(array(true)),
+            'object' => array((object) array('enabled' => true)),
+        );
     }
 
     public function test_as_primary_is_forced_false()

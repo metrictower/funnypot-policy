@@ -23,6 +23,8 @@ final class PolicyConfig
     private $position;
     /** @var array Verdict-classification => action */
     private $actions;
+    /** @var bool dedicated permission for deception on ambient paths */
+    private $deceiveAmbientPaths;
     /** @var array reputation block */
     private $reputation;
     /** @var array learn-then-enforce */
@@ -72,10 +74,15 @@ final class PolicyConfig
         $a = isset($opts['actions']) && is_array($opts['actions']) ? $opts['actions'] : array();
         $c->actions = array(
             Verdict::CLEAN         => isset($a['clean']) ? (string) $a['clean'] : Decision::ALLOW,
+            Verdict::AMBIENT       => isset($a['ambient']) ? (string) $a['ambient'] : Decision::LOG,
             Verdict::SUSPICIOUS    => isset($a['suspicious']) ? (string) $a['suspicious'] : Decision::LOG,
             Verdict::ATTACK_CLASS  => isset($a['attack_class']) ? (string) $a['attack_class'] : Decision::BLOCK,
             Verdict::SCANNER_PROBE => isset($a['scanner_probe']) ? (string) $a['scanner_probe'] : Decision::DECEIVE,
         );
+        // Permission is deliberately stricter than the older truthy config knobs: only the literal
+        // boolean true can lift the ambient-path deception fence.
+        $c->deceiveAmbientPaths = isset($opts['deceive_ambient_paths'])
+            && $opts['deceive_ambient_paths'] === true;
 
         $r = isset($opts['reputation']) && is_array($opts['reputation']) ? $opts['reputation'] : array();
         $c->reputation = array(
@@ -194,6 +201,11 @@ final class PolicyConfig
     public function actionFor($classification)
     {
         return isset($this->actions[$classification]) ? $this->actions[$classification] : Decision::ALLOW;
+    }
+
+    public function deceiveAmbientPaths()
+    {
+        return $this->deceiveAmbientPaths;
     }
 
     /**

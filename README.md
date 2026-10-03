@@ -60,6 +60,27 @@ drags in no framework:
 | `GeoIpInterface` | country from a **local** GeoIP DB (no network) | host GeoIP DB |
 | `Clock` / `Logger` | time + logging | host runtime |
 
+## Ambient-path policy
+
+An `ambient` verdict (for ordinary paths such as a site's crawler metadata) defaults to
+`Decision::log('ambient')`, not allow and not deception. Hosts that deliberately want these paths
+eligible for fakes must opt in with the separate top-level permission **and** choose an action that
+can deceive:
+
+```php
+PolicyConfig::fromArray(array(
+    'actions' => array('ambient' => 'deceive'),
+    'deceive_ambient_paths' => true,
+));
+```
+
+Only the PHP boolean `true` enables `deceive_ambient_paths`; strings and numbers remain off. The
+permission does not turn the default `log` action into deception by itself. It gates both explicit
+ambient deception and fallback promotion, while the existing counterfactual/real-route, posture,
+rule-state, allowlist and pin precedence still applies. When an actionable decision enters reporting,
+actual ambient evidence is soft evidence and accumulates under the normal suppression gate, even for
+`block` or `deceive`. Explicit `allow` retains its existing reporting bypass.
+
 ## The cheapest-first ladder
 
 `evaluate()` runs a fixed precedence and returns on the first gate that decides — the expensive
@@ -82,6 +103,8 @@ rules auto-enforce day-1).
 - **Reputation is never primary.** Clean content is never blocked on reputation alone; the engine never deceives on reputation alone.
 - **Deceive is fenced.** It survives only where the counterfactual is a 404, or on a real route past
   the block threshold via a *specific* matched signature — never the uncertainty band alone.
+- **Ambient deception is separately opt-in.** Ambient defaults to `log`; only strict boolean
+  `deceive_ambient_paths=true` can make the configured ambient action eligible to synthesize.
 - **Status is app-chosen** (no model-driven 3xx), and every `reason` is a non-sensitive label (no
   signature strings in logs).
 

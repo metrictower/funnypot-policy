@@ -29,7 +29,7 @@ final class Decision
         'allowlist', 'self-ip', 'safe-path', 'pin', 'blocklist',
         'sacrificial-path', 'malicious-ua', 'country',
         'reputation-modifier', 'reputation-block', 'bot-signal-composite',
-        'shadow', 'fallback-deceive', 'attack-class', 'scanner-probe', 'suspicious',
+        'shadow', 'fallback-deceive', 'attack-class', 'scanner-probe', 'suspicious', 'ambient',
         'failsafe',
     );
 

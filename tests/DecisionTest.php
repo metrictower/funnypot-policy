@@ -46,6 +46,7 @@ final class DecisionTest extends TestCase
     {
         $this->assertSame('pin', Decision::allow('pin')->reason());
         $this->assertSame('sacrificial-path', Decision::deceive($this->fake(), null, 'sacrificial-path')->reason());
+        $this->assertSame('ambient', Decision::log('ambient')->reason());
     }
 
     public function test_signature_shaped_reason_is_rejected()
@@ -123,4 +124,3 @@ final class DecisionTest extends TestCase
         }
     }
 }
-

@@ -38,8 +38,8 @@ final class BurstFuzzingAnalyzer
     /** @var callable returns a 32-char hex event id */
     private $tokenGen;
     /**
-     * @var array<string,array{req:float[], decoy:float[], breaches:int, last:float}>
-     * per-source: request + decoy-hit timestamps, current Retry-After ladder level, last-breach time, last-touch.
+     * @var array<string,array> per-source: req[]/decoy[] timestamps, level (ladder idx), lastEscalateAt,
+     *      lastBreachAt, last-touch.
      */
     private $sources = array();
 
@@ -72,21 +72,27 @@ final class BurstFuzzingAnalyzer
         if ($isDecoyHit) {
             $s['decoy'][] = $now;
         }
-        // Prune outside the widest window, and cap the rings so a sustained flood can't grow memory.
-        $s['req'] = $this->within($s['req'], $now, self::DECOY_WINDOW_SECS);
+        // Prune each ring to the window that uses it, and cap the rings so a sustained flood can't grow
+        // memory. `req` only feeds the 1s velocity window; `decoy` the 5s window.
+        $s['req'] = $this->within($s['req'], $now, self::VELOCITY_WINDOW_SECS);
         $s['decoy'] = $this->within($s['decoy'], $now, self::DECOY_WINDOW_SECS);
 
-        $reqInSec = count($this->within($s['req'], $now, self::VELOCITY_WINDOW_SECS));
+        $reqInSec = count($s['req']);
         $decoyInWindow = count($s['decoy']);
 
         if ($reqInSec > $this->reqPerSec || $decoyInWindow > $this->decoyBurst) {
-            // Escalate the Retry-After ladder only when the source keeps flooding into a NEW velocity
-            // window (i.e. it ignored the prior Retry-After and came back still flooding) — never
-            // per-request, so a single fast burst is ONE level (3s), and a source that keeps hammering
-            // across windows climbs 6s/12s/30s/60s. Within one window the level holds.
+            // Escalate the Retry-After ladder at most ONCE per velocity window of CONTINUED breaching,
+            // anchored on the last ESCALATION time (NOT the last breach — bumping that every breach made
+            // a continuous flood, which breaches every few ms, never cross the window, so it stuck at 3s
+            // while a partial-backoff client wrongly climbed). So: a single-window burst holds at 3s; a
+            // source still flooding one window later climbs 6s/12s/30s/60s; the WORST offender (never
+            // pausing) now climbs fastest, as intended.
             $maxLevel = count(self::RETRY_LADDER) - 1;
-            if ($s['lastBreachAt'] !== 0.0 && ($now - $s['lastBreachAt']) >= self::VELOCITY_WINDOW_SECS) {
+            if ($s['lastEscalateAt'] === 0.0) {
+                $s['lastEscalateAt'] = $now; // first breach anchors the window; level stays 0 (3s)
+            } elseif (($now - $s['lastEscalateAt']) >= self::VELOCITY_WINDOW_SECS) {
                 $s['level'] = min($s['level'] + 1, $maxLevel);
+                $s['lastEscalateAt'] = $now;
             }
             $s['lastBreachAt'] = $now;
             $retryAfter = self::RETRY_LADDER[min($s['level'], $maxLevel)];
@@ -95,10 +101,11 @@ final class BurstFuzzingAnalyzer
             return new BurstVerdict(429, $retryAfter, (string) call_user_func($this->tokenGen), $reqInSec, $decoyInWindow);
         }
 
-        // A non-breaching request from a source that has gone quiet (no breach within a cooldown) cools
-        // the ladder back to level 0, so Retry-After de-escalates rather than sticking at 60s forever.
+        // A non-breaching request from a source that has gone quiet (no breach within the cooldown
+        // window) cools the ladder back to level 0, so Retry-After de-escalates rather than sticking.
         if ($s['level'] > 0 && $s['lastBreachAt'] !== 0.0 && ($now - $s['lastBreachAt']) >= self::DECOY_WINDOW_SECS) {
             $s['level'] = 0;
+            $s['lastEscalateAt'] = 0.0;
             $s['lastBreachAt'] = 0.0;
         }
 
@@ -140,7 +147,7 @@ final class BurstFuzzingAnalyzer
                 unset($this->sources[$oldestKey]);
             }
         }
-        $this->sources[$source] = array('req' => array(), 'decoy' => array(), 'level' => 0, 'lastBreachAt' => 0.0, 'last' => $now);
+        $this->sources[$source] = array('req' => array(), 'decoy' => array(), 'level' => 0, 'lastEscalateAt' => 0.0, 'lastBreachAt' => 0.0, 'last' => $now);
     }
 
     /** Tracked-source count (tests / introspection). */

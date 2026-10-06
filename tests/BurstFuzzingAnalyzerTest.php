@@ -98,6 +98,28 @@ final class BurstFuzzingAnalyzerTest extends TestCase
         self::assertSame(60, $seen[count($seen) - 1], 'Retry-After caps at 60');
     }
 
+    public function test_continuous_flood_climbs_the_ladder_to_the_cap()
+    {
+        // The realistic ffuf/gobuster case: a sustained flood with the clock advancing. It must CLIMB
+        // past 3s (the worst offender escalates fastest), not stay pinned at 3s. Regression for the
+        // inverted-escalation defect (gap-since-last-breach never crossed the window under a flood).
+        $a = $this->analyzer(5);
+        $seen = array();
+        for ($step = 0; $step < 40; $step++) {
+            $this->now += 0.2;              // 5 steps per second
+            for ($i = 0; $i < 3; $i++) {    // ~15 req/s, over the 5 req/s threshold
+                $r = $a->observe('x.x.x.x');
+                if ($r !== null) {
+                    $seen[] = $r->retryAfter();
+                }
+            }
+        }
+        self::assertContains(3, $seen, 'starts at 3s');
+        self::assertContains(6, $seen, 'continuous flood climbs past the first level');
+        self::assertContains(60, $seen, 'a sustained flood reaches the cap');
+        self::assertSame(60, max($seen), 'Retry-After caps at 60');
+    }
+
     public function test_single_burst_holds_one_level_does_not_self_escalate()
     {
         // A single fast burst in ONE window must stay at level 0 (3s) — escalation is across windows,
